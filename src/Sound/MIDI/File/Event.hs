@@ -89,7 +89,7 @@ get =
    if tag < 0xF0
      then liftM MIDIEvent $ ChannelMsg.getWithStatus tag
      else
-       StatusParser.set Nothing >>
+       -- StatusParser.set Nothing >>
        (StatusParser.lift $
         if tag == 0xFF
           then liftM MetaEvent $ MetaEvent.get
