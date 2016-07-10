@@ -409,7 +409,7 @@ registeredParameterMSB    = toEnum 0x65  {- 101 65 -}
 get :: Parser.C parser => Int -> Int -> Parser.Fragile parser T
 get code firstData =
    let pitch  = toPitch firstData
-       getVel = liftM toVelocity get1
+       getVel = liftM (toVelocity . min 127) get1
    in  case code of
           08 -> liftM (NoteOff        pitch) getVel
           09 -> liftM (NoteOn         pitch) getVel
