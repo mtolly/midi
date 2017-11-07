@@ -13,7 +13,6 @@ import Control.Monad (liftM, )
 
 
 
-{-# DEPRECATED T "implement this data type properly" #-}
 {- |
 There are three forms of System Exclusive Messages in MIDI files:
 monolithic, chopped into packets, escape form (with unrestricted binary data).
