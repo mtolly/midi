@@ -19,10 +19,10 @@ import qualified Numeric.NonNegative.Wrapper as NonNeg
 
 import qualified Sound.MIDI.Writer.Status as StatusWriter
 import qualified Sound.MIDI.Writer.Basic  as Writer
-import qualified Sound.MIDI.Monoid as M
 import Sound.MIDI.Monoid ((+#+))
 
 import qualified Data.Monoid.Transformer as Trans
+import Data.Foldable (foldMap, )
 
 import Sound.MIDI.IO (ByteList, writeBinaryFile, )
 
@@ -88,7 +88,7 @@ put (MIDIFile.Cons mft divisn trks) =
       Writer.putInt 2 (fromEnum mft) +#+ -- format (type 0, 1 or 2)
       Writer.putInt 2 (length trks)  +#+ -- number of tracks to come
       putDivision divisn)                 -- time unit
-   +#+ M.concatMap putTrack trks
+   +#+ foldMap putTrack trks
 
 putDivision :: Writer.C writer => Division -> writer
 putDivision (Ticks nticks) =

@@ -1,7 +1,9 @@
 module Sound.MIDI.Monoid where
 
-import Data.Monoid (Monoid, mappend, mconcat, )
-import Prelude hiding (concatMap, )
+import Data.Foldable (foldMap, )
+import Data.Monoid (Monoid, mappend, )
+import Data.Semigroup (Semigroup, sconcat, )
+import Data.List.NonEmpty (NonEmpty, )
 
 
 
@@ -19,9 +21,9 @@ genAppend cons decons x y =
 genConcat :: (Monoid m) =>
    (m -> a) -> (a -> m) -> [a] -> a
 genConcat cons decons =
-   cons . concatMap decons
+   cons . foldMap decons
 
--- foldMap
-concatMap :: (Monoid m) =>
-   (a -> m) -> [a] -> m
-concatMap f = mconcat . map f
+nonEmptyConcat :: (Semigroup m) =>
+   (m -> a) -> (a -> m) -> NonEmpty a -> a
+nonEmptyConcat cons decons =
+   cons . sconcat . fmap decons

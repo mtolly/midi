@@ -11,7 +11,8 @@ import Data.Monoid.Transformer (lift, )
 
 import qualified Data.Monoid.HT as MonoidHT
 import Data.Monoid (Monoid, mempty, mappend, mconcat, )
-import Sound.MIDI.Monoid (genAppend, genConcat, )
+import Data.Semigroup (Semigroup, sconcat, (<>), )
+import Sound.MIDI.Monoid (genAppend, genConcat, nonEmptyConcat, )
 
 
 data Uncompressed = Uncompressed
@@ -25,6 +26,10 @@ or 'Compressed' for files respecting the running status.
 -}
 newtype T compress writer = Cons {decons :: State.T compress writer}
 
+
+instance Semigroup writer => Semigroup (T compress writer) where
+   Cons x <> Cons y = Cons $ x<>y
+   sconcat = nonEmptyConcat Cons decons
 
 instance Monoid writer => Monoid (T compress writer) where
    mempty = Cons $ mempty

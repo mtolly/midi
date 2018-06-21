@@ -116,7 +116,7 @@ which is definitely compressible.
 compressible :: MidiFile.T -> Bool
 compressible =
    any (or . ListHT.mapAdjacent equalStatus . EventList.getBodies) .
-   MidiFile.getTracks
+   MidiFile.getTracks . MidiFile.implicitNoteOff
 
 compressionStrictlyShortens :: MidiFile.T -> QC.Property
 compressionStrictlyShortens midi =

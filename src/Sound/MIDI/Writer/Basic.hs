@@ -4,13 +4,14 @@ import qualified Numeric.NonNegative.Wrapper as NonNeg
 
 import qualified Sound.MIDI.Bit as Bit
 import qualified Sound.MIDI.IO as MIO
-import qualified Sound.MIDI.Monoid as M
 import qualified Data.Monoid as Monoid
 
 import Data.Bits ((.|.))
 import Sound.MIDI.IO (listByteFromChar, )
+import Sound.MIDI.Monoid ((+#+), genAppend, genConcat, nonEmptyConcat, )
+import Data.Foldable (foldMap, )
 import Data.Monoid (Monoid, mempty, mappend, mconcat, )
-import Sound.MIDI.Monoid ((+#+), genAppend, genConcat, )
+import Data.Semigroup (Semigroup(sconcat, (<>)), )
 
 import Control.Monad.Trans.Reader (ReaderT, runReaderT, ask, )
 import Control.Monad.Trans.Class (lift, )
@@ -44,6 +45,10 @@ class Monoid m => C m where
 -- differences list
 newtype ByteList = ByteList {unByteList :: Monoid.Endo MIO.ByteList}
 
+instance Semigroup ByteList where
+   (<>) = genAppend ByteList unByteList
+   sconcat = nonEmptyConcat ByteList unByteList
+
 instance Monoid ByteList where
    mempty = ByteList mempty
    mappend = genAppend ByteList unByteList
@@ -70,6 +75,10 @@ runByteList = flip Monoid.appEndo [] . unByteList
 
 newtype ByteString = ByteString {unByteString :: Builder}
 
+instance Semigroup ByteString where
+   (<>) = genAppend ByteString unByteString
+   sconcat = nonEmptyConcat ByteString unByteString
+
 instance Monoid ByteString where
    mempty = ByteString $ mempty
    mappend = genAppend ByteString unByteString
@@ -95,10 +104,13 @@ runByteString = Builder.toLazyByteString . unByteString
 
 newtype SeekableFile = SeekableFile {unSeekableFile :: ReaderT Handle IO ()}
 
+instance Semigroup SeekableFile where
+   x <> y = SeekableFile $ unSeekableFile x >> unSeekableFile y
+
 instance Monoid SeekableFile where
    mempty = SeekableFile $ return ()
-   mappend x y = SeekableFile $ unSeekableFile x >> unSeekableFile y
-   mconcat xs  = SeekableFile $ mapM_ unSeekableFile xs
+   mappend = (<>)
+   mconcat = SeekableFile . mapM_ unSeekableFile
 
 instance C SeekableFile where
    putByte c =
@@ -146,7 +158,7 @@ putIntAsByte :: C writer => Int -> writer
 putIntAsByte x = putByte $ fromIntegral x
 
 putByteList :: C writer => MIO.ByteList -> writer
-putByteList = M.concatMap putByte
+putByteList = foldMap putByte
 
 putLenByteList :: C writer => MIO.ByteList -> writer
 putLenByteList bytes =
