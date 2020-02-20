@@ -12,7 +12,7 @@ import Data.Binary.Get (Get, runGet, )
 
 import Control.Monad.Trans.Class (lift, )
 import Control.Monad (liftM, ap, )
-import Control.Applicative (Applicative, pure, (<*>), )
+import Control.Applicative (Applicative, pure, (<*>), (<|>), )
 
 import qualified Sound.MIDI.Parser.Report as Report
 
@@ -103,5 +103,7 @@ In contrast to Binary.skip this one does not fail badly and it works with Int64.
 I hope that it is not too inefficient.
 -}
 skip :: Int64 -> Get ()
-skip n = Binary.getLazyByteString n >> return ()
+skip n = do
+  _ <- Binary.getLazyByteString n <|> Binary.getRemainingLazyByteString
+  return ()
 -- Binary.skip n
