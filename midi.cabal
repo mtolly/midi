@@ -1,14 +1,14 @@
 Name:             midi
-Version:          0.2.2.2
+Version:          0.2.2.3
 License:          GPL
 License-File:     LICENSE
 Author:           Henning Thielemann <haskell@henning-thielemann.de>
 Maintainer:       Henning Thielemann <haskell@henning-thielemann.de>
-Homepage:         http://www.haskell.org/haskellwiki/MIDI
+Homepage:         http://wiki.haskell.org/MIDI
 Category:         Sound, Music
 Tested-With:      GHC==7.0.4, GHC==7.2.2, GHC==7.4.2, GHC==7.6.3, GHC==7.8.4, GHC==7.10.1
 Tested-With:      GHC==8.4.1
-Cabal-Version:    >=1.14
+Cabal-Version:    1.14
 Build-Type:       Simple
 Synopsis:         Handling of MIDI messages and files
 Description:
@@ -25,12 +25,12 @@ Extra-Source-Files:
   src/Sound/MIDI/Example/Tomatosalad.hs
 Source-Repository head
   type:     darcs
-  location: http://hub.darcs.net/thielema/midi/
+  location: https://hub.darcs.net/thielema/midi/
 
 Source-Repository this
   type:     darcs
-  location: http://hub.darcs.net/thielema/midi/
-  tag:      0.2.2.2
+  location: https://hub.darcs.net/thielema/midi/
+  tag:      0.2.2.3
 
 Library
   Build-Depends:
@@ -39,9 +39,9 @@ Library
     semigroups >=0.1 && <1.0,
     utility-ht >=0.0.10 && <0.1,
     explicit-exception >=0.1 && <0.2,
-    bytestring >=0.9.0.1 && <0.11,
-    binary >=0.4.2 && <0.9,
-    transformers >=0.2 && <0.6,
+    bytestring >=0.9.0.1 && <0.12,
+    binary >=0.4.2 && <0.11,
+    transformers >=0.2 && <0.7,
     monoid-transformer >=0.0.4 && <0.1,
     QuickCheck >=2.1 && <3,
     random >=1 && <2,
