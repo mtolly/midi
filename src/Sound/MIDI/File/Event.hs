@@ -7,6 +7,9 @@ Namely System Common and System Real Time messages are missing.
 If you need both real-time and file messages (say for ALSA sequencer),
 you need a custom datatype.
 -}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE DeriveTraversable #-}
 module Sound.MIDI.File.Event (
    T(..), get, put,
    TrackEvent, getTrackEvent,
@@ -54,7 +57,7 @@ data T s =
      MIDIEvent       ChannelMsg.T
    | MetaEvent       (MetaEvent.T s)
    | SystemExclusive SysEx.T
-     deriving (Show,Eq,Ord)
+     deriving (Show,Eq,Ord,Functor,Foldable,Traversable)
 
 instance (Arbitrary s) => Arbitrary (T s) where
    arbitrary =

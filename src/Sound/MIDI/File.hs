@@ -4,6 +4,9 @@ MIDI-File Datatype
 Taken from Haskore.
 -}
 
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE DeriveTraversable #-}
 module Sound.MIDI.File (
    T(..), Division(..), Track, Type(..),
    empty,
@@ -48,7 +51,7 @@ import Data.Maybe(fromMaybe)
 The datatypes for MIDI Files and MIDI Events
 -}
 
-data T s = Cons Type Division [Track s] deriving (Show, Eq)
+data T s = Cons Type Division [Track s] deriving (Show, Eq, Functor, Foldable, Traversable)
 
 data Type     = Mixed | Parallel | Serial
      deriving (Show, Eq, Ord, Ix, Enum, Bounded)

@@ -1,3 +1,6 @@
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE DeriveTraversable #-}
 module Sound.MIDI.File.Event.Meta (
    T(..),
    ElapsedTime, fromElapsedTime, toElapsedTime,
@@ -62,7 +65,7 @@ data T s =
    | KeySig KeySig.T
    | SequencerSpecific ByteList
    | Unknown Int ByteList
-     deriving (Show, Eq, Ord)
+     deriving (Show, Eq, Ord, Functor, Foldable, Traversable)
 
 
 instance (Arbitrary s) => Arbitrary (T s) where
