@@ -38,7 +38,8 @@ import qualified Sound.MIDI.Parser.Report as Report
 import Control.Monad.Trans.Class (lift, )
 import Control.Monad (liftM, liftM2, )
 
-import qualified Data.ByteString.Lazy as B
+import qualified Data.ByteString as B
+import qualified Data.ByteString.Lazy as BL
 
 import qualified Control.Monad.Exception.Asynchronous as Async
 import Data.List (genericReplicate, genericLength, )
@@ -52,7 +53,7 @@ and an error is signaled by a user exception.
 This function will not be appropriate in GUI applications.
 For these, use 'maybeFromByteString' instead.
 -}
-fromFile :: FilePath -> IO MIDIFile.T
+fromFile :: FilePath -> IO (MIDIFile.T B.ByteString)
 fromFile =
    FileParser.runIncompleteFile parse
 
@@ -73,19 +74,19 @@ This function ignores warnings, turns exceptions into errors,
 and return partial results without warnings.
 Use this only in testing but never in production code!
 -}
-fromByteList :: ByteList -> MIDIFile.T
+fromByteList :: ByteList -> MIDIFile.T B.ByteString
 fromByteList contents =
    either
       error id
       (Report.result (maybeFromByteList contents))
 
 maybeFromByteList ::
-   ByteList -> Report.T MIDIFile.T
+   ByteList -> Report.T (MIDIFile.T B.ByteString)
 maybeFromByteList =
    StreamParser.runIncomplete parse . StreamParser.ByteList
 
 maybeFromByteString ::
-   B.ByteString -> Report.T MIDIFile.T
+   BL.ByteString -> Report.T (MIDIFile.T B.ByteString)
 maybeFromByteString =
    ByteStringParser.runIncomplete parse
 
@@ -98,7 +99,7 @@ followed by any number of track chunks, but for robustness's sake we ignore
 any non-header chunks that come before a header chunk.  The header tells us
 the number of tracks to come, which is passed to 'getTracks'.
 -}
-parse :: Parser.C parser => Parser.Partial (Parser.Fragile parser) MIDIFile.T
+parse :: Parser.C parser => Parser.Partial (Parser.Fragile parser) (MIDIFile.T B.ByteString)
 parse =
    getChunk >>= \ (typ, hdLen) ->
       case typ of
@@ -129,7 +130,7 @@ Thus the end marker is redundant and we remove a 'EndOfTrack'
 at the end of the track
 and complain about all 'EndOfTrack's within the event list.
 -}
-removeEndOfTrack :: Parser.C parser => Track -> parser Track
+removeEndOfTrack :: Parser.C parser => Track s -> parser (Track s)
 removeEndOfTrack xs =
    maybe
       (Parser.warn "Empty track, missing EndOfTrack" >>
@@ -146,7 +147,7 @@ removeEndOfTrack xs =
                  return track)
       (EventList.viewR xs)
 
-isEndOfTrack :: Event.T -> Bool
+isEndOfTrack :: Event.T s -> Bool
 isEndOfTrack ev =
    case ev of
       Event.MetaEvent MetaEvent.EndOfTrack -> True
@@ -181,7 +182,7 @@ getChunk =
       (getNByteCardinal 4)
                      -- chunk body
 
-getTrackChunk :: Parser.C parser => Parser.Partial (Parser.Fragile parser) (Maybe Track)
+getTrackChunk :: Parser.C parser => Parser.Partial (Parser.Fragile parser) (Maybe (Track B.ByteString))
 getTrackChunk =
    do (typ, len) <- getChunk
       if typ=="MTrk"
@@ -225,7 +226,7 @@ getDivision =
 A track is a series of events.  Parse a track, stopping when the size
 is zero.
 -}
-getTrack :: Parser.C parser => Parser.Partial (StatusParser.T parser) MIDIFile.Track
+getTrack :: Parser.C parser => Parser.Partial (StatusParser.T parser) (MIDIFile.Track B.ByteString)
 getTrack =
    liftM
       (fmap EventList.fromPairList)

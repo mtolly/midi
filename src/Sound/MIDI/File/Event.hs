@@ -37,25 +37,26 @@ import qualified Sound.MIDI.Writer.Basic  as Writer
 import Sound.MIDI.Monoid ((+#+))
 import Data.Tuple.HT (mapSnd)
 
+import qualified Data.ByteString as B
 
 import Test.QuickCheck (Arbitrary(arbitrary), )
 import qualified Test.QuickCheck as QC
 
 
 
-type TrackEvent = (ElapsedTime, T)
+type TrackEvent s = (ElapsedTime, T s)
 
-mapBody :: (T -> T) -> (TrackEvent -> TrackEvent)
+mapBody :: (T s -> T s) -> (TrackEvent s -> TrackEvent s)
 mapBody = mapSnd
 
 
-data T =
+data T s =
      MIDIEvent       ChannelMsg.T
-   | MetaEvent       MetaEvent.T
+   | MetaEvent       (MetaEvent.T s)
    | SystemExclusive SysEx.T
      deriving (Show,Eq,Ord)
 
-instance Arbitrary T where
+instance (Arbitrary s) => Arbitrary (T s) where
    arbitrary =
       QC.frequency $
          (100, liftM MIDIEvent arbitrary) :
@@ -63,19 +64,19 @@ instance Arbitrary T where
          []
 
 
-maybeMIDIEvent :: T -> Maybe ChannelMsg.T
+maybeMIDIEvent :: T s -> Maybe ChannelMsg.T
 maybeMIDIEvent (MIDIEvent msg) = Just msg
 maybeMIDIEvent _ = Nothing
 
-maybeMetaEvent :: T -> Maybe MetaEvent.T
+maybeMetaEvent :: T s -> Maybe (MetaEvent.T s)
 maybeMetaEvent (MetaEvent mev) = Just mev
 maybeMetaEvent _ = Nothing
 
-maybeVoice :: T -> Maybe (Channel, Voice.T)
+maybeVoice :: T s -> Maybe (Channel, Voice.T)
 maybeVoice (MIDIEvent (ChannelMsg.Cons ch (ChannelMsg.Voice ev))) = Just (ch,ev)
 maybeVoice _ = Nothing
 
-mapVoice :: (Voice.T -> Voice.T) -> T -> T
+mapVoice :: (Voice.T -> Voice.T) -> T s -> T s
 mapVoice f (MIDIEvent (ChannelMsg.Cons ch (ChannelMsg.Voice ev))) =
    MIDIEvent (ChannelMsg.Cons ch (ChannelMsg.Voice (f ev)))
 mapVoice _ msg = msg
@@ -83,7 +84,7 @@ mapVoice _ msg = msg
 
 -- * serialization
 
-get :: Parser.C parser => Parser.Fragile (StatusParser.T parser) T
+get :: Parser.C parser => Parser.Fragile (StatusParser.T parser) (T B.ByteString)
 get =
    StatusParser.lift get1 >>= \tag ->
    if tag < 0xF0
@@ -100,7 +101,7 @@ Each event is preceded by the delta time: the time in ticks between the
 last event and the current event.  Parse a time and an event, ignoring
 System Exclusive messages.
 -}
-getTrackEvent :: Parser.C parser => Parser.Fragile (StatusParser.T parser) TrackEvent
+getTrackEvent :: Parser.C parser => Parser.Fragile (StatusParser.T parser) (TrackEvent B.ByteString)
 getTrackEvent  =  liftM2 (,) (StatusParser.lift getVar) get
 
 
@@ -111,7 +112,7 @@ into the raw data of a standard MIDI file.
 
 put ::
    (StatusWriter.Compression compress, Writer.C writer) =>
-   T -> StatusWriter.T compress writer
+   T B.ByteString -> StatusWriter.T compress writer
 put e =
    case e of
       MIDIEvent       m -> ChannelMsg.putWithStatus m

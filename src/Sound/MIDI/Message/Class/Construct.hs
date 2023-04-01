@@ -98,11 +98,11 @@ instance C MidiMsg.T where
 
 liftFile ::
    (Channel -> a -> ChannelMsg.T) ->
-   (Channel -> a -> FileEvent.T)
+   (Channel -> a -> FileEvent.T s)
 liftFile makeMsg channel msg =
    FileEvent.MIDIEvent $ makeMsg channel msg
 
-instance C FileEvent.T where
+instance C (FileEvent.T s) where
    note = liftFile note
    program = liftFile program
    anyController = liftFile anyController

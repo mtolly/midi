@@ -14,7 +14,7 @@ import qualified Data.ByteString.Lazy as B
 
 
 
-example :: MidiFile.T
+example :: MidiFile.T s
 example =
    let chan = ChannelMsg.toChannel 0
    in  MidiFile.Cons MidiFile.Parallel (MidiFile.Ticks 10)

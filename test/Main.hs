@@ -21,7 +21,8 @@ import qualified Sound.MIDI.Parser.Report as Report
 
 import qualified Data.EventList.Relative.TimeBody as EventList
 
-import qualified Data.ByteString.Lazy as B
+import qualified Data.ByteString as B
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.List as List
 import qualified Data.List.HT as ListHT
 import qualified Data.List.Match as Match
@@ -35,18 +36,18 @@ import Control.Monad (liftM, when, )
 testMidiName :: FilePath
 testMidiName = "quickcheck-test.mid"
 
-runExample :: MidiFile.T -> IO ()
+runExample :: MidiFile.T s -> IO ()
 runExample example =
    let bin    = Save.toByteString example
        struct = Load.maybeFromByteString bin
        report = Report.Cons [] (Right example)
-   in  B.writeFile testMidiName bin >>
+   in  BL.writeFile testMidiName bin >>
        print (struct == report) >>
        when (struct/=report)
           (print struct >> print report)
 
 -- provoke a test failure in order to see some examples of Arbitrary MIDI files
-checkArbitrary :: MidiFile.T -> Bool
+checkArbitrary :: MidiFile.T s -> Bool
 checkArbitrary (MidiFile.Cons _typ _division tracks) =
    all ((< 10) . length . EventList.toPairList) tracks
 
@@ -55,10 +56,10 @@ checkArbitrary (MidiFile.Cons _typ _division tracks) =
 Increase the probability of similar adjacent messages
 that can be compressed using the running status.
 -}
-newtype SortedFile = SortedFile {getSortedFile :: MidiFile.T}
+newtype SortedFile = SortedFile {getSortedFile :: MidiFile.T B.ByteString}
    deriving Show
 
-sortedFile :: MidiFile.T -> SortedFile
+sortedFile :: MidiFile.T s -> SortedFile
 sortedFile =
    SortedFile .
    MidiFile.mapTrack
@@ -70,32 +71,32 @@ instance QC.Arbitrary SortedFile where
    shrink = map sortedFile . QC.shrink . getSortedFile
 
 
-saveLoadByteString :: MidiFile.T -> Bool
+saveLoadByteString :: MidiFile.T s -> Bool
 saveLoadByteString midi =
    let bin    = Save.toByteString midi
        struct = Load.maybeFromByteString bin
        report = Report.Cons [] (Right midi)
    in  struct == report
 
-saveLoadCompressedByteString :: MidiFile.T -> Bool
+saveLoadCompressedByteString :: MidiFile.T s -> Bool
 saveLoadCompressedByteString midi =
    let bin    = Save.toCompressedByteString midi
        struct = Load.maybeFromByteString bin
        report = Report.Cons [] (Right (MidiFile.implicitNoteOff midi))
    in  struct == report
 
-compressionShortens :: MidiFile.T -> Bool
+compressionShortens :: MidiFile.T s -> Bool
 compressionShortens midi =
-   B.length (Save.toByteString midi)
+   BL.length (Save.toByteString midi)
    >=
-   B.length (Save.toCompressedByteString midi)
+   BL.length (Save.toCompressedByteString midi)
 
 
 {-
 This does not cover all cases of possible running status compression,
 but the most common ones.
 -}
-equalStatus :: Event.T -> Event.T -> Bool
+equalStatus :: Event.T s -> Event.T s -> Bool
 equalStatus x y =
    case (Event.maybeVoice x, Event.maybeVoice y) of
       (Just (ch0, ev0), Just (ch1, ev1)) ->
@@ -113,39 +114,39 @@ equalStatus x y =
 You may test manually with Example.status
 which is definitely compressible.
 -}
-compressible :: MidiFile.T -> Bool
+compressible :: MidiFile.T s -> Bool
 compressible =
    any (or . ListHT.mapAdjacent equalStatus . EventList.getBodies) .
    MidiFile.getTracks . MidiFile.implicitNoteOff
 
-compressionStrictlyShortens :: MidiFile.T -> QC.Property
+compressionStrictlyShortens :: MidiFile.T s -> QC.Property
 compressionStrictlyShortens midi =
    compressible midi
    QC.==>
-   B.length (Save.toByteString midi)
+   BL.length (Save.toByteString midi)
    >
-   B.length (Save.toCompressedByteString midi)
+   BL.length (Save.toCompressedByteString midi)
 
-saveLoadMaybeByteList :: MidiFile.T -> Bool
+saveLoadMaybeByteList :: MidiFile.T s -> Bool
 saveLoadMaybeByteList midi =
    let bin    = Save.toByteList midi
        struct = Load.maybeFromByteList bin
        report = Report.Cons [] (Right midi)
    in  struct == report
 
-saveLoadByteList :: MidiFile.T -> Bool
+saveLoadByteList :: MidiFile.T B.ByteString -> Bool
 saveLoadByteList midi =
    midi == Load.fromByteList (Save.toByteList midi)
 
 
-saveLoadFile :: MidiFile.T -> IO Bool
+saveLoadFile :: MidiFile.T B.ByteString -> IO Bool
 saveLoadFile midi =
    do Save.toSeekableFile testMidiName midi
       struct <- Load.fromFile testMidiName
       return $ struct == midi
 
 
-loadSaveByteString :: MidiFile.T -> Bool
+loadSaveByteString :: MidiFile.T s -> Bool
 loadSaveByteString midi0 =
    let bin0 = Save.toByteString midi0
    in  case Load.maybeFromByteString bin0 of
@@ -153,7 +154,7 @@ loadSaveByteString midi0 =
                bin0 == Save.toByteString midi1
           _ -> False
 
-loadSaveCompressedByteString :: MidiFile.T -> Bool
+loadSaveCompressedByteString :: MidiFile.T s -> Bool
 loadSaveCompressedByteString midi0 =
    let bin0 = Save.toCompressedByteString midi0
    in  case Load.maybeFromByteString bin0 of
@@ -161,7 +162,7 @@ loadSaveCompressedByteString midi0 =
                bin0 == Save.toCompressedByteString midi1
           _ -> False
 
-loadSaveByteList :: MidiFile.T -> Bool
+loadSaveByteList :: MidiFile.T s -> Bool
 loadSaveByteList midi0 =
    let bin0 = Save.toByteList midi0
    in  case Load.maybeFromByteList bin0 of
@@ -170,14 +171,14 @@ loadSaveByteList midi0 =
           _ -> False
 
 
-restrictionByteList :: MidiFile.T -> Bool
+restrictionByteList :: MidiFile.T s -> Bool
 restrictionByteList midi =
    let bin = Save.toByteList midi
    in  Load.fromByteList bin ==
        Load.fromByteList (bin++[undefined])
 
 
-lazinessByteList :: MidiFile.T -> Bool
+lazinessByteList :: MidiFile.T s -> Bool
 lazinessByteList (MidiFile.Cons typ divsn tracks00) =
    let tracks0 = filter (not . EventList.null) tracks00
        bin0 = Save.toByteList (MidiFile.Cons typ divsn tracks0)
@@ -207,22 +208,22 @@ and do not trap into errors.
 Sometimes it may yield an error which is @binary@'s fault.
 See 'readAfterEnd'.
 -}
-corruptionByteString :: Int64 -> Int -> MidiFile.T -> Bool
+corruptionByteString :: Int64 -> Int -> MidiFile.T B.ByteString -> Bool
 corruptionByteString pos replacement midi =
    let bin = Save.toByteString midi
-       n = mod pos (B.length bin + 1)
-       (pre, post) = B.splitAt n bin
+       n = mod pos (BL.length bin + 1)
+       (pre, post) = BL.splitAt n bin
        replaceByte = fromIntegral replacement
        corruptBin =
-          B.append pre
-             (if B.null post
-                then B.singleton replaceByte
-                else B.cons replaceByte (B.tail post))
-   in  -- trace (show (B.unpack corruptBin)) $
+          BL.append pre
+             (if BL.null post
+                then BL.singleton replaceByte
+                else BL.cons replaceByte (BL.tail post))
+   in  -- trace (show (BL.unpack corruptBin)) $
        case Load.maybeFromByteString corruptBin of
           Report.Cons _ _ -> True
 
-corruptionByteList :: Int -> Int -> MidiFile.T -> Bool
+corruptionByteList :: Int -> Int -> MidiFile.T B.ByteString -> Bool
 corruptionByteList pos replacement midi =
    let bin = Save.toByteList midi
        n = mod pos (length bin + 1)
@@ -247,7 +248,7 @@ readAfterEnd = do
        fails =
           filter
              (\pos -> not $ corruptionByteString pos 0 Example.readAfterEnd)
-             [0 .. B.length bin]
+             [0 .. BL.length bin]
    when (not $ null fails) $
       putStr $ " fails at positions " ++ show fails
    putStrLn ""

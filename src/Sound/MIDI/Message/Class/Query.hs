@@ -105,13 +105,13 @@ instance C MidiMsg.T where
 
 liftFile ::
    (ChannelMsg.T -> Maybe (Channel, a)) ->
-   (FileEvent.T -> Maybe (Channel, a))
+   (FileEvent.T s -> Maybe (Channel, a))
 liftFile checkMsg msg =
    case msg of
       FileEvent.MIDIEvent midiMsg -> checkMsg midiMsg
       _ -> Nothing
 
-instance C FileEvent.T where
+instance C (FileEvent.T s) where
    note = liftFile note
    program = liftFile program
    anyController = liftFile anyController

@@ -26,7 +26,8 @@ import Data.Foldable (foldMap, )
 
 import Sound.MIDI.IO (ByteList, writeBinaryFile, )
 
-import qualified Data.ByteString.Lazy as B
+import qualified Data.ByteString as B
+import qualified Data.ByteString.Lazy as BL
 
 
 
@@ -36,7 +37,7 @@ Since chunks lengths are not known before writing,
 we need to seek in a file.
 Thus you cannot write to pipes with this function.
 -}
-toSeekableFile :: FilePath {- ^ file name -} -> MIDIFile.T -> IO ()
+toSeekableFile :: FilePath {- ^ file name -} -> MIDIFile.T B.ByteString -> IO ()
 toSeekableFile fn =
    Writer.runSeekableFile fn . StatusWriter.toWriterWithoutStatus . put
 
@@ -44,7 +45,7 @@ toSeekableFile fn =
 The function 'toFile' is the main function
 for writing 'MIDIFile.T' values to an actual file.
 -}
-toFile :: FilePath {- ^ file name -} -> MIDIFile.T -> IO ()
+toFile :: FilePath {- ^ file name -} -> MIDIFile.T B.ByteString -> IO ()
 toFile fn mf = writeBinaryFile fn (toByteList mf)
 
 {-
@@ -56,23 +57,23 @@ and then \"executed\" using 'execWriter'.
 {- |
 Convert a MIDI file to a 'ByteList'.
 -}
-toByteList :: MIDIFile.T -> ByteList
+toByteList :: MIDIFile.T B.ByteString -> ByteList
 toByteList =
    Writer.runByteList . StatusWriter.toWriterWithoutStatus . put
 
 {- |
-Convert a MIDI file to a lazy 'B.ByteString'.
+Convert a MIDI file to a lazy 'BL.ByteString'.
 -}
-toByteString :: MIDIFile.T -> B.ByteString
+toByteString :: MIDIFile.T B.ByteString -> BL.ByteString
 toByteString =
    Writer.runByteString . StatusWriter.toWriterWithoutStatus . put
 
 {- |
-Convert a MIDI file to a lazy 'B.ByteString'.
+Convert a MIDI file to a lazy 'BL.ByteString'.
 It converts @NoteOff p 64@ to @NoteOn p 0@
 and then uses the running MIDI status in order to compress the file.
 -}
-toCompressedByteString :: MIDIFile.T -> B.ByteString
+toCompressedByteString :: MIDIFile.T B.ByteString -> BL.ByteString
 toCompressedByteString =
    Writer.runByteString . StatusWriter.toWriterWithStatus . put .
    MIDIFile.implicitNoteOff
@@ -82,7 +83,7 @@ toCompressedByteString =
 
 put ::
    (StatusWriter.Compression compress, Writer.C writer) =>
-   MIDIFile.T -> StatusWriter.T compress writer
+   MIDIFile.T B.ByteString -> StatusWriter.T compress writer
 put (MIDIFile.Cons mft divisn trks) =
    (putChunk "MThd" $ StatusWriter.lift $
       Writer.putInt 2 (fromEnum mft) +#+ -- format (type 0, 1 or 2)
@@ -99,7 +100,7 @@ putDivision (SMPTE mode nticks) =
 
 putTrack ::
    (StatusWriter.Compression compress, Writer.C writer) =>
-   Track -> StatusWriter.T compress writer
+   Track B.ByteString -> StatusWriter.T compress writer
 putTrack trk =
    putChunk "MTrk" $
    EventList.concatMapMonoid (StatusWriter.lift . Writer.putVar) Event.put $

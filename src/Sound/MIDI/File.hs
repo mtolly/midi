@@ -48,25 +48,25 @@ import Data.Maybe(fromMaybe)
 The datatypes for MIDI Files and MIDI Events
 -}
 
-data T = Cons Type Division [Track] deriving (Show, Eq)
+data T s = Cons Type Division [Track s] deriving (Show, Eq)
 
 data Type     = Mixed | Parallel | Serial
      deriving (Show, Eq, Ord, Ix, Enum, Bounded)
 data Division = Ticks Tempo | SMPTE Int Int
      deriving (Show, Eq)
 
-type Track = EventList.T ElapsedTime Event.T
+type Track s = EventList.T ElapsedTime (Event.T s)
 
 
 {- |
 An empty MIDI file.
 Tempo is set to one tick per quarter note.
 -}
-empty :: T
+empty :: T s
 empty = Cons Mixed (Ticks 1) [EventList.empty]
 
 
-instance Arbitrary T where
+instance (Arbitrary s) => Arbitrary (T s) where
    arbitrary =
       do (typ, content) <-
              QC.oneof $
@@ -93,7 +93,7 @@ instance Arbitrary Division where
 {- |
 Apply a function to each track.
 -}
-mapTrack :: (Track -> Track) -> T -> T
+mapTrack :: (Track s -> Track s) -> T s -> T s
 mapTrack f (Cons mfType division tracks) =
    Cons mfType division (map f tracks)
 
@@ -101,7 +101,7 @@ mapTrack f (Cons mfType division tracks) =
 Convert all @NoteOn p 0@ to @NoteOff p 64@.
 The latter one is easier to process.
 -}
-explicitNoteOff :: T -> T
+explicitNoteOff :: T s -> T s
 explicitNoteOff =
    mapTrack (EventList.mapBody (Event.mapVoice VoiceMsg.explicitNoteOff))
 
@@ -110,12 +110,12 @@ explicitNoteOff =
 Convert all @NoteOff p 64@ to @NoteOn p 0@.
 The latter one can be encoded more efficiently using the running status.
 -}
-implicitNoteOff :: T -> T
+implicitNoteOff :: T s -> T s
 implicitNoteOff =
    mapTrack (EventList.mapBody (Event.mapVoice VoiceMsg.implicitNoteOff))
 
 
-getTracks :: T -> [Track]
+getTracks :: T s -> [Track s]
 getTracks (Cons _ _ trks) = trks
 
 {- |
@@ -139,8 +139,8 @@ The result is an event list where the times are measured in seconds.
 -}
 secondsFromTicks ::
    Division ->
-   EventList.T ElapsedTime Event.T ->
-   EventList.T NonNegW.Rational Event.T
+   EventList.T ElapsedTime (Event.T s) ->
+   EventList.T NonNegW.Rational (Event.T s)
 secondsFromTicks division =
    EventList.catMaybes .
    flip MS.evalState MetaEvent.defltTempo .
@@ -190,7 +190,7 @@ Show the 'T' with one event per line,
 suited for comparing MIDIFiles with @diff@.
 Can this be replaced by 'Sound.MIDI.Load.showFile'?
 -}
-showLines :: T -> String
+showLines :: (Show s) => T s -> String
 showLines (Cons mfType division tracks) =
    let showTrack track =
           unlines
@@ -208,7 +208,7 @@ showTime :: ElapsedTime -> ShowS
 showTime t =
    rightS 10 (shows t) . showString " : "
 
-showEvent :: Event.T -> ShowS
+showEvent :: (Show s) => Event.T s -> ShowS
 showEvent (Event.MIDIEvent e) =
    showString "Event.MIDIEvent " . shows e
 showEvent (Event.MetaEvent e) =
@@ -221,7 +221,7 @@ showEvent (Event.SystemExclusive s) =
 A hack that changes the velocities by a rational factor.
 -}
 
-changeVelocity :: Double -> T -> T
+changeVelocity :: Double -> T s -> T s
 changeVelocity r =
    let multVel vel =
           VoiceMsg.toVelocity $
@@ -235,7 +235,7 @@ changeVelocity r =
 Change the time base.
 -}
 
-resampleTime :: Double -> T -> T
+resampleTime :: Double -> T s -> T s
 resampleTime r =
    let divTime  time = round (fromIntegral time / r)
        newTempo tmp  = round (fromIntegral tmp  * r)
@@ -257,7 +257,7 @@ The sample rate of MIDI events should be coarse enough
 to assert unique results.
 -}
 
-sortEvents :: T -> T
+sortEvents :: (Ord s) => T s -> T s
 sortEvents =
    let coincideNote ev0 ev1 =
           fromMaybe False $
@@ -286,7 +286,7 @@ Because of this a 'MIDIEvent.ProgramChange' is now always after a 'MetaEvent.Set
 For checking equivalence with old MIDI files we can switch this back.
 -}
 
-progChangeBeforeSetTempo :: T -> T
+progChangeBeforeSetTempo :: T s -> T s
 progChangeBeforeSetTempo =
    let sortTrack evs =
           do ((t0,st@(Event.MetaEvent (MetaEvent.SetTempo _))), rest0)

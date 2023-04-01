@@ -10,18 +10,20 @@ import qualified Sound.MIDI.Message.Channel       as ChannelMsg
 import qualified Data.EventList.Relative.TimeBody as EventList
 import Data.EventList.Relative.MixedBody ((/.), (./), )
 
+import qualified Data.ByteString.Char8 as B8
 
-empty :: MidiFile.T
+
+empty :: MidiFile.T s
 empty =
    MidiFile.Cons MidiFile.Parallel (MidiFile.Ticks 10)
       [EventList.empty]
 
-meta :: MidiFile.T
+meta :: MidiFile.T B8.ByteString
 meta =
    MidiFile.Cons MidiFile.Parallel (MidiFile.Ticks 10)
-      [EventList.singleton 0 (Event.MetaEvent (MetaEvent.Lyric "foobarz"))]
+      [EventList.singleton 0 (Event.MetaEvent (MetaEvent.Lyric (B8.pack "foobarz")))]
 
-status :: MidiFile.T
+status :: MidiFile.T s
 status =
    let chan = ChannelMsg.toChannel 3
        vel  = VoiceMsg.toVelocity 64
@@ -35,7 +37,7 @@ status =
            EventList.empty]
 
 
-readAfterEnd :: MidiFile.T
+readAfterEnd :: MidiFile.T s
 readAfterEnd =
    let chan = ChannelMsg.toChannel 3
        vel  = VoiceMsg.toVelocity 64

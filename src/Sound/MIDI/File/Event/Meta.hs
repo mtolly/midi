@@ -22,13 +22,15 @@ import qualified Sound.MIDI.Bit as Bit
 import Sound.MIDI.Monoid ((+#+))
 
 import qualified Numeric.NonNegative.Wrapper as NonNeg
-import Sound.MIDI.IO (ByteList, listCharFromByte, listByteFromChar, )
+import Sound.MIDI.IO (ByteList, )
 
 import Sound.MIDI.Utility
-         (arbitraryString, arbitraryByteList, )
+         (arbitraryByteList, )
 
 import Test.QuickCheck (Arbitrary(arbitrary), )
 import qualified Test.QuickCheck as QC
+
+import qualified Data.ByteString as B
 
 import Prelude hiding (putStr, )
 
@@ -43,15 +45,15 @@ type SMPTESeconds = Int
 type SMPTEFrames  = Int
 type SMPTEBits    = Int
 
-data T =
+data T s =
      SequenceNum Int
-   | TextEvent String
-   | Copyright String
-   | TrackName String
-   | InstrumentName String
-   | Lyric String
-   | Marker String
-   | CuePoint String
+   | TextEvent s
+   | Copyright s
+   | TrackName s
+   | InstrumentName s
+   | Lyric s
+   | Marker s
+   | CuePoint s
    | MIDIPrefix Channel
    | EndOfTrack
    | SetTempo Tempo
@@ -63,17 +65,17 @@ data T =
      deriving (Show, Eq, Ord)
 
 
-instance Arbitrary T where
+instance (Arbitrary s) => Arbitrary (T s) where
    arbitrary =
       QC.oneof $
          liftM  SequenceNum (QC.choose (0,0xFFFF)) :
-         liftM  TextEvent arbitraryString :
-         liftM  Copyright arbitraryString :
-         liftM  TrackName arbitraryString :
-         liftM  InstrumentName arbitraryString :
-         liftM  Lyric arbitraryString :
-         liftM  Marker arbitraryString :
-         liftM  CuePoint arbitraryString :
+         liftM  TextEvent arbitrary :
+         liftM  Copyright arbitrary :
+         liftM  TrackName arbitrary :
+         liftM  InstrumentName arbitrary :
+         liftM  Lyric arbitrary :
+         liftM  Marker arbitrary :
+         liftM  CuePoint arbitrary :
          liftM  (MIDIPrefix . toChannel) (QC.choose (0,15)) :
 --         return EndOfTrack :
          liftM  (SetTempo . NonNeg.fromNumberMsg "Tempo always positive") (QC.choose (0,0xFFFFFF)) :
@@ -112,12 +114,12 @@ defltTempo = 500000
 
 -- * serialization
 
-get :: Parser.C parser => Parser.Fragile parser T
+get :: Parser.C parser => Parser.Fragile parser (T B.ByteString)
 get =
    do code <- get1
       len  <- getVar
       let parse = ParserRestricted.runFragile len
-      let returnText cons = liftM (cons . listCharFromByte) $ getBigN len
+      let returnText cons = liftM (cons . B.pack) $ getBigN len
       case code of
          000 -> parse $ liftM SequenceNum get2
          001 -> returnText TextEvent
@@ -154,7 +156,7 @@ get =
          _   -> liftM (Unknown code) $ getBigN len
 
 
-put :: Writer.C writer => T -> writer
+put :: Writer.C writer => T B.ByteString -> writer
 put ev =
    Writer.putByte 255 +#+
    case ev of
@@ -191,9 +193,9 @@ putInt code numBytes x =
    Writer.putByteList
       (map fromIntegral $ Bit.someBytes numBytes x)
 
-putStr :: Writer.C writer => Int -> String -> writer
+putStr :: Writer.C writer => Int -> B.ByteString -> writer
 putStr code =
-   putByteList code . listByteFromChar
+   putByteList code . B.unpack
 
 putList :: Writer.C writer => Int -> [Int] -> writer
 putList code =
